@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 import numpy as np
 from enum import Enum
 
-from .geometry import Geometry, GeometryType, GeoCalculator
+from .geometry.geometry import _Geometry, GeometryType, GeoCalculator
 
 if TYPE_CHECKING:
     from .component import Component
@@ -13,7 +13,7 @@ geocalc=GeoCalculator()
 
 class Datum:
     
-    def __init__(self, geo: Geometry = None, dimension: 'Dimension' = None, name: str = None):
+    def __init__(self, geo: _Geometry = None, dimension: 'Dimension' = None, name: str = None):
         """
         Create a datum either from existing geometry or from a dimension relationship.
         
@@ -45,7 +45,7 @@ class Datum:
     def from_geometry(cls, geometry_type: GeometryType, origin=[0,0,0], frame=[0,0,1], 
                      r: float = 0, name: str = None) -> 'Datum':
         """Create a primary datum from geometry parameters"""
-        geo = Geometry(geometry_type, origin, frame, r)
+        geo = _Geometry(geometry_type, origin, frame, r)
         return cls(geo=geo, name=name)
     
     @classmethod 
@@ -213,7 +213,7 @@ class Dimension:
         """Check if this dimension provides enough constraints for target geometry"""
         return DIMENSION_VALIDATORS[self.dimension_type](self, target_geometry)
     
-    def calculate_geometry(self, target_geometry: GeometryType) -> 'Geometry':
+    def calculate_geometry(self, target_geometry: GeometryType) -> '_Geometry':
         """Calculate the actual geometry from this dimension"""
         return DIMENSION_CALCULATORS[self.dimension_type](self, target_geometry)
 
@@ -255,7 +255,7 @@ DIMENSION_VALIDATORS = {
 }
 
 # Dimension calculator functions
-def _calculate_offset_distance(dimension: 'Dimension', target_geometry: GeometryType) -> 'Geometry':
+def _calculate_offset_distance(dimension: 'Dimension', target_geometry: GeometryType) -> '_Geometry':
     """Calculate geometry offset by distance in specified direction"""
     ref_datum = dimension.reference_datums[0]
     distance = dimension.values if np.isscalar(dimension.values) else dimension.values[0]
@@ -265,21 +265,21 @@ def _calculate_offset_distance(dimension: 'Dimension', target_geometry: Geometry
     new_origin = ref_datum.geo.aorigin + distance * direction
     
     if target_geometry == GeometryType.POINT:
-        return Geometry(target_geometry, new_origin)
+        return _Geometry(target_geometry, new_origin)
     elif target_geometry == GeometryType.PLANE:
-        return Geometry(target_geometry, new_origin, direction)
+        return _Geometry(target_geometry, new_origin, direction)
     elif target_geometry == GeometryType.AXIS:
         # Keep the same orientation as reference datum
-        return Geometry(target_geometry, new_origin, ref_datum.geo.aframe)
+        return _Geometry(target_geometry, new_origin, ref_datum.geo.aframe)
     elif target_geometry == GeometryType.CYLINDER:
         # For cylinder, use direction as axis direction and get radius from constraints
         radius = dimension.constraints.get('radius', 0)
-        return Geometry(target_geometry, new_origin, direction, r=radius)
+        return _Geometry(target_geometry, new_origin, direction, r=radius)
     elif target_geometry == GeometryType.SPHERE:
         radius = dimension.constraints.get('radius', 0)
-        return Geometry(target_geometry, new_origin, r=radius)
+        return _Geometry(target_geometry, new_origin, r=radius)
 
-def _calculate_offset_xy(dimension: 'Dimension', target_geometry: GeometryType) -> 'Geometry':
+def _calculate_offset_xy(dimension: 'Dimension', target_geometry: GeometryType) -> '_Geometry':
     """Calculate geometry offset by X,Y distances from reference"""
     ref_datum = dimension.reference_datums[0]
     dx, dy = dimension.values[0], dimension.values[1]
@@ -295,19 +295,19 @@ def _calculate_offset_xy(dimension: 'Dimension', target_geometry: GeometryType) 
         new_origin = ref_datum.geo.aorigin + np.array([dx, dy, 0])
     
     if target_geometry == GeometryType.POINT:
-        return Geometry(target_geometry, new_origin)
+        return _Geometry(target_geometry, new_origin)
     elif target_geometry == GeometryType.AXIS:
         direction = dimension.constraints.get('direction', [0, 0, 1])
-        return Geometry(target_geometry, new_origin, direction)
+        return _Geometry(target_geometry, new_origin, direction)
 
-def _calculate_offset_xyz(dimension: 'Dimension', target_geometry: GeometryType) -> 'Geometry':
+def _calculate_offset_xyz(dimension: 'Dimension', target_geometry: GeometryType) -> '_Geometry':
     """Calculate point offset by X,Y,Z distances"""
     ref_datum = dimension.reference_datums[0]
     dx, dy, dz = dimension.values[0], dimension.values[1], dimension.values[2]
     new_origin = ref_datum.geo.aorigin + np.array([dx, dy, dz])
-    return Geometry(target_geometry, new_origin)
+    return _Geometry(target_geometry, new_origin)
 
-def _calculate_angle_from_axis(dimension: 'Dimension', target_geometry: GeometryType) -> 'Geometry':
+def _calculate_angle_from_axis(dimension: 'Dimension', target_geometry: GeometryType) -> '_Geometry':
     """Calculate geometry at angle from reference axis/plane"""
     ref_datum = dimension.reference_datums[0]
     angle = dimension.values if np.isscalar(dimension.values) else dimension.values[0]
@@ -325,11 +325,11 @@ def _calculate_angle_from_axis(dimension: 'Dimension', target_geometry: Geometry
     new_direction = ref_direction  # Placeholder
     
     if target_geometry == GeometryType.AXIS:
-        return Geometry(target_geometry, ref_datum.geo.aorigin, new_direction)
+        return _Geometry(target_geometry, ref_datum.geo.aorigin, new_direction)
     elif target_geometry == GeometryType.PLANE:
-        return Geometry(target_geometry, ref_datum.geo.aorigin, new_direction)
+        return _Geometry(target_geometry, ref_datum.geo.aorigin, new_direction)
 
-def _calculate_intersect_two_planes(dimension: 'Dimension', target_geometry: GeometryType) -> 'Geometry':
+def _calculate_intersect_two_planes(dimension: 'Dimension', target_geometry: GeometryType) -> '_Geometry':
     """Calculate axis from intersection of two planes"""
     plane1 = dimension.reference_datums[0].geo
     plane2 = dimension.reference_datums[1].geo
@@ -337,7 +337,7 @@ def _calculate_intersect_two_planes(dimension: 'Dimension', target_geometry: Geo
     # Use existing intersection calculation
     return geocalc.intersect(plane1, plane2)
 
-def _calculate_tangent_to_cylinder(dimension: 'Dimension', target_geometry: GeometryType) -> 'Geometry':
+def _calculate_tangent_to_cylinder(dimension: 'Dimension', target_geometry: GeometryType) -> '_Geometry':
     """Calculate plane tangent to cylinder"""
     cyl_datum = dimension.reference_datums[0]
     direction = np.array(dimension.constraints['direction'])
@@ -345,7 +345,7 @@ def _calculate_tangent_to_cylinder(dimension: 'Dimension', target_geometry: Geom
     # Find tangent point on cylinder surface
     # This would need proper tangent calculation
     tangent_point = cyl_datum.geo.aorigin + cyl_datum.geo.r * direction
-    return Geometry(target_geometry, tangent_point, direction)
+    return _Geometry(target_geometry, tangent_point, direction)
 
 # Dimension calculators - compute actual geometry
 DIMENSION_CALCULATORS = {
@@ -396,38 +396,38 @@ class Relation(ABC):
         self.orient=np.array(orient)
     
     @abstractmethod
-    def calculate(self, reference:Geometry, referent:Geometry)->None:
+    def calculate(self, reference:_Geometry, referent:_Geometry)->None:
         pass
     
-    def is_valid(self, reference:Geometry, referent:Geometry)->bool:
+    def is_valid(self, reference:_Geometry, referent:_Geometry)->bool:
         pass
     
-    def __call__(self, reference:Geometry, referent:Geometry):
+    def __call__(self, reference:_Geometry, referent:_Geometry):
         return self.calculate(reference, referent)
 
 class Coincident(Relation):
     
-    def calculate(self, reference:Geometry, referent:Geometry):
+    def calculate(self, reference:_Geometry, referent:_Geometry):
         referent.set_origin(reference.origin)
         referent.set_frame(reference.frame)
         
-    def is_valid(self, reference:Geometry, referent:Geometry)->bool:
+    def is_valid(self, reference:_Geometry, referent:_Geometry)->bool:
         return True
 
 class Parallel(Relation):
     
-    def calculate(self, reference:Geometry, referent:Geometry):
+    def calculate(self, reference:_Geometry, referent:_Geometry):
         referent.set_frame(reference.frame)
         
-    def is_valid(self, reference:Geometry, referent:Geometry)->bool:
+    def is_valid(self, reference:_Geometry, referent:_Geometry)->bool:
         return True
     
 class Tangent(Relation):
     
-    def calculate(self, reference:Geometry, referent:Geometry):
+    def calculate(self, reference:_Geometry, referent:_Geometry):
         pass
     
-    def is_valid(self, reference:Geometry, referent:Geometry):
+    def is_valid(self, reference:_Geometry, referent:_Geometry):
         
         pass
         

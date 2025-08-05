@@ -2,11 +2,11 @@
 
 from typing import Dict, List, Tuple, Optional
 from enum import Enum
-import numpy as np
+import numpy as np_Geometry_Geometry
 
 from .component import Component
 from .datum import Datum, geocalc
-from .geometry import GeometryType
+from .geometry.geometry import GeometryType
 from .transformations import CoordinateTransformer, TransformationStep
 
 class MateType(Enum):

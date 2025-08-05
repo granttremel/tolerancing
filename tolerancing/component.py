@@ -3,7 +3,7 @@ from typing import Dict, List, TYPE_CHECKING, Optional, Union
 import string
 
 from .datum import Datum, Relation
-from .geometry import GeometryType
+from .geometry.geometry import GeometryType
 
 if TYPE_CHECKING:
     from .assembly import Assembly
