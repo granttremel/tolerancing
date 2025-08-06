@@ -335,7 +335,8 @@ class Cylinder(GeometryBase):
         # New radius
         new_r = params.get('r', self.r)
         
-        new_origin = self.origin + du * self.u + dv * self.v + dw * self.w
+        # new_origin = self.origin + du * self.u + dv * self.v + dw * self.w
+        new_origin = du * self.u + dv * self.v + dw * self.w
         
         #rotate about origin in xyz coordinates
         rx = params.get('rx', 0)
@@ -347,7 +348,7 @@ class Cylinder(GeometryBase):
         else:
             new_frame = self.rotate_frame(self.frame.copy(), rx, ry, rz)
         
-        return Cylinder(origin=new_origin, frame=new_frame, r=new_r)
+        return Cylinder(origin=new_origin, frame=new_frame, r=new_r, reference=self)
     
     def _derive_other(self, **params) -> 'GeometryBaseType':
         """
@@ -362,7 +363,7 @@ class Cylinder(GeometryBase):
             # Point on cylinder surface
             u_pos = params.get('u', 0)
             angle = params.get('angle', 0)
-            return Point(origin=self.coordinate(u_pos, angle))
+            return Point(origin=self.coordinate(u_pos, angle),reference=self)
         else:
             return NullGeometry()
     

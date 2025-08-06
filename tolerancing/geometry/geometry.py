@@ -79,9 +79,12 @@ class GeometryBase(ABC):
         self.r=params.get('r',0) #radius for circular geometries: circle, cylinder, sphere
         self.limits=params.get('limits',None) #bounds describing extent in uvw (for future)
         self.reference=params.get('reference',None)
+        self.rot=None
+        self._validate_frame()
         #other params if necessary..
     
     def _validate_frame(self)->np.ndarray:
+        
         return self.frame
     
     @property
@@ -95,6 +98,31 @@ class GeometryBase(ABC):
     @property
     def w(self)->np.ndarray:
         return self.frame[2]
+    
+    @property
+    def aorigin(self)->np.ndarray:
+        
+        if self.reference:
+            return self.origin + self.reference.aorigin
+        else:
+            return self.origin
+        
+    @property
+    def aframe(self)->np.ndarray:
+        
+        rot_stack = self.get_rotation_stack()
+        myrot = transform.Rotation.concatenate(rot_stack)
+        return myrot.apply(np.array([[1,0,0],[0,1,0],[0,0,1]]))
+    
+    def get_rotation(self):
+        return transform.Rotation.from_matrix(self.frame)
+    
+    def get_rotation_stack(self):
+        myrot = self.get_rotation()
+        rotation_stack = [myrot]
+        if self.reference:
+            rotation_stack.extend(self.reference.get_rotation_stack())
+        return rotation_stack
     
     def is_null(self):
         return self.geotype.value<0
@@ -175,11 +203,13 @@ class GeometryBase(ABC):
         """
         pass
     
-    def derive(self, mode='same', **params)->'GeometryBase':
+    def derive(self, new_geo:int|GeometryType, **params)->'GeometryBase':
         """
         create a new geometry from this one. params contain target geo type, 
         """
-        if mode=="same":
+        new_geo=GeometryType(new_geo)
+        print(new_geo, self.geotype)
+        if new_geo==self.geotype:
             return self._derive_same(**params)
         else:
             return self._derive_other(**params)
@@ -233,28 +263,9 @@ class GeometryBase(ABC):
         """
         pass
 
+
     @staticmethod
     def rotate_frame(frame:np.ndarray, rx:float, ry:float, rz:float, deg = False):
-
-        if deg:
-            rx, ry, rz = np.radians(rx), np.radians(ry), np.radians(rz)
-
-        rotations = []
-
-        for r in [rx, ry, rz]:
-            if np.isclose(r, 0):
-                continue
-            coshalfr = cos(r/2)
-            sinhalfr = sin(r/2)
-            scframe = sinhalfr*frame.copy()
-            
-            rotation = transform.Rotation.from_quat((coshalfr,scframe[0],scframe[1],scframe[2]))
-            rotations.append(rotation)
-            
-        rot_concat = transform.Rotation.concatenate(rotations)
-        print(rot_concat)
-        
-        newframe = np.array(rot_concat.apply(frame))
         # Rx = np.array([
         #     [1, 0, 0],
         #     [0, cos(rx), -sin(rx)],
@@ -275,6 +286,26 @@ class GeometryBase(ABC):
         #     [0, 0, 1]
         # ])
         
+        if deg:
+            rx, ry, rz = np.radians(rx), np.radians(ry), np.radians(rz)
+
+        rotations = []
+
+        for i,r in enumerate([rx, ry, rz]):
+            if np.isclose(r, 0):
+                continue
+            coshalfr = cos(r/2)
+            sinhalfr = sin(r/2)
+            scframe = sinhalfr*frame.copy()
+            arg = [coshalfr] + list(scframe[i])
+            
+            rotation = transform.Rotation.from_quat(arg)
+            rotations.append(rotation)
+            
+        rot_concat = transform.Rotation.concatenate(rotations)
+        
+        newframe = np.array(rot_concat.apply(frame))
+
         return newframe
 
     @abstractmethod

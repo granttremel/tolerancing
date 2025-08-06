@@ -11,7 +11,7 @@ class Point(GeometryBase):
     def __init__(self,**params):
         
         super().__init__(**params)
-        self.frame=np.array([[0]*3]*3, dtype='float64')
+        # self.frame=np.array([[0]*3]*3, dtype='float64')
         self.geotype:GeometryType=GeometryType.POINT
         
     def _convert_forward(self, uvw:np.ndarray)->np.ndarray:

@@ -214,6 +214,7 @@ class Axis(GeometryBase):
         """
         Create a new axis with modified parameters.
         """
+        print('axis derive same')
         # Translation in uvw frame
         du = params.get('du', 0)
         dv = params.get('dv', 0)
@@ -221,11 +222,15 @@ class Axis(GeometryBase):
         
         # Rotation of frame (not implemented for now)
         # TODO: Implement frame rotation when needed
+        ru = params.get('ru',0)
+        rv = params.get('rv',0)
+        rw = params.get('rw',0)
         
-        new_origin = self.origin + du * self.u + dv * self.v + dw * self.w
+        # new_origin = self.origin + du * self.u + dv * self.v + dw * self.w
+        new_origin = du * self.u + dv * self.v + dw * self.w
         new_frame = self.frame.copy()
         
-        return Axis(origin=new_origin, frame=new_frame)
+        return Axis(origin=new_origin, frame=new_frame, reference=self)
     
     def _derive_other(self, **params) -> 'GeometryBase':
         """
@@ -240,7 +245,8 @@ class Axis(GeometryBase):
         """
         # Lazy import to avoid circular dependency
         from .plane import Plane
-        return Plane(origin=self.origin, u=self.u)
+        # return Plane(origin=self.origin, u=self.u)
+        return Plane(origin=[0,0,0], u=self.u, reference=self)
         
     def __contains__(self, other: 'GeometryBase') -> bool:
         """
