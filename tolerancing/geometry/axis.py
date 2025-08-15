@@ -93,6 +93,12 @@ class Axis(GeometryBase):
         """
         return self.origin + u * self.u
     
+    def get_local_frame(self, u, v, w):
+        """
+        an axis' frame is the same everywhere
+        """
+        return self.frame
+    
     def tangent(self, u: float, v: float = None, w: float = None) -> np.ndarray:
         """
         Returns the tangent vector at any point on the axis.
@@ -214,7 +220,6 @@ class Axis(GeometryBase):
         """
         Create a new axis with modified parameters.
         """
-        print('axis derive same')
         # Translation in uvw frame
         du = params.get('du', 0)
         dv = params.get('dv', 0)
@@ -236,8 +241,24 @@ class Axis(GeometryBase):
         """
         Derive a different type of geometry from this axis.
         """
-        # TODO: Implement when needed (e.g., derive plane perpendicular to axis)
-        return NullGeometry()
+        newgeo = GeometryType(params.get("new_geo", params.get("geo_type", 0)))
+        
+        if newgeo == GeometryType.POINT:
+            # Point along the axis
+            du = params.get('du', 0)
+            dv = params.get('dv', 0)
+            dw = params.get('dw', 0)
+            origin = self.origin + du * self.u + dv * self.v + dw * self.w
+            from .point import Point
+            return Point(origin=origin)
+        elif newgeo == GeometryType.PLANE:
+            # Plane perpendicular to axis
+            du = params.get('du', 0)
+            origin = self.origin + du * self.u
+            from .plane import Plane
+            return Plane(origin=origin, u=self.u)
+        else:
+            return NullGeometry()
     
     def derive_dual(self, **params):
         """
@@ -262,3 +283,7 @@ class Axis(GeometryBase):
                 # Check if origins align
                 return np.allclose(self._distance_point(Point(origin=other.origin)), 0)
         return False
+    
+    def __repr__(self):
+        """Simple representation of an axis."""
+        return f"Axis(origin=[{self.origin[0]:.1f},{self.origin[1]:.1f},{self.origin[2]:.1f}],u=[{self.u[0]:.1f},{self.u[1]:.1f},{self.u[2]:.1f}])"

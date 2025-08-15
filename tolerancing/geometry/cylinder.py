@@ -1,5 +1,7 @@
 import numpy as np
 from typing import TYPE_CHECKING
+
+from tolerancing.transformations import CoordinateTransformer
 from .geometry import GeometryBase, GeometryType, NullGeometry
 from .point import Point
 from .axis import Axis
@@ -16,7 +18,8 @@ class Cylinder(GeometryBase):
     A cylinder is defined by:
     - origin: a point on the cylinder axis
     - frame: where u (first row) is the direction vector of the cylinder axis,
-             v and w (second and third rows) are radial directions
+             v is the radial direction corresponding to theta=0 
+             w is the radial direction normal to u and v
     - r: radius of the cylinder
     """
     
@@ -127,6 +130,15 @@ class Cylinder(GeometryBase):
         
         return self.origin + u * self.u + v_coord * self.v + w_coord * self.w
     
+    def get_local_frame(self, u, v, w):
+        """
+        an axis' frame is the same everywhere
+        """
+        angle = np.arctan2(v, w)
+        
+        localframe = CoordinateTransformer().rotate_3d(self.frame, angle, 0, 0)
+        return localframe
+
     def tangent(self, u: float = 0, v: float = None, w: float = None) -> np.ndarray:
         """
         Returns a tangent vector at a point on the cylinder.
@@ -397,3 +409,7 @@ class Cylinder(GeometryBase):
                 return np.allclose(axis_dist, 0)
             return False
         return False
+    
+    def __repr__(self):
+        """Simple representation of a cylinder."""
+        return f"Cylinder(origin=[{self.origin[0]:.1f},{self.origin[1]:.1f},{self.origin[2]:.1f}],u=[{self.u[0]:.1f},{self.u[1]:.1f},{self.u[2]:.1f}],r={self.r:.1f})"

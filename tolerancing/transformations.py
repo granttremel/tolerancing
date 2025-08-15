@@ -13,10 +13,10 @@ from dataclasses import dataclass
 from enum import Enum
 
 if TYPE_CHECKING:
-    from .datum import Dimension
+    from .datum import Dimension, Datum
     from .assembly import Mate, Assembly
 
-from .datum import Datum
+# from .datum import Datum
 from .geometry import GeometryType
 
 # Symbolic variables for transformations
@@ -43,8 +43,8 @@ class TransformationStep:
     symbolic_matrix: Matrix
     parameters: Dict[str, Union[float, sp.Symbol]]
     tolerances: Dict[str, float]
-    source_datum: Optional[Datum] = None
-    target_datum: Optional[Datum] = None
+    source_datum: Optional['Datum'] = None
+    target_datum: Optional['Datum'] = None
     description: str = ""
     
     def evaluate(self, values: Dict[str, float]) -> np.ndarray:
@@ -76,55 +76,91 @@ class CoordinateTransformer:
         self.cached_transforms = {}
         self.transformation_chains = {}
     
-    @staticmethod
-    def create_translation_matrix(dx_sym: sp.Symbol, dy_sym: sp.Symbol, dz_sym: sp.Symbol) -> Matrix:
+    @classmethod
+    def rotate_3d(cls, frame, rx, ry, rz):
+        
+        sz = frame.shape
+        if not sz== (4,4):
+            newframe = np.eye(4)
+            newframe[:sz[0], :sz[1]] = frame
+        else:
+            newframe = frame.copy()
+            
+        rot = cls.create_rotation_matrix_xyz(rx, ry, rz)
+        rotframe = rot@newframe
+        return rotframe[:sz[0], :sz[1]]
+    
+    @classmethod
+    def create_translation_matrix(cls, dx: float|sp.Symbol, dy: float|sp.Symbol, dz: float|sp.Symbol) -> Matrix:
         """Create a symbolic 4x4 translation matrix"""
-        return Matrix([
-            [1, 0, 0, dx_sym],
-            [0, 1, 0, dy_sym], 
-            [0, 0, 1, dz_sym],
+        return np.array([
+            [1, 0, 0, dx],
+            [0, 1, 0, dy], 
+            [0, 0, 1, dz],
             [0, 0, 0, 1]
         ])
     
-    @staticmethod
-    def create_rotation_matrix_z(angle_sym: sp.Symbol) -> Matrix:
+    @classmethod
+    def create_rotation_matrix_z(cls, angle: float|sp.Symbol) -> np.array:
         """Create a symbolic 4x4 rotation matrix around Z axis"""
-        return Matrix([
-            [cos(angle_sym), -sin(angle_sym), 0, 0],
-            [sin(angle_sym), cos(angle_sym), 0, 0],
+        return np.array([
+            [cos(angle), -sin(angle), 0, 0],
+            [sin(angle), cos(angle), 0, 0],
             [0, 0, 1, 0],
             [0, 0, 0, 1]
         ])
     
-    @staticmethod
-    def create_rotation_matrix_xyz(rx_sym: sp.Symbol, ry_sym: sp.Symbol, rz_sym: sp.Symbol) -> Matrix:
+    @classmethod
+    def create_rotation_matrix_xyz(cls, rx: float|sp.Symbol, ry: float|sp.Symbol, rz: float|sp.Symbol) -> np.array:
         """Create a symbolic 4x4 rotation matrix for XYZ Euler angles"""
         # Rotation around X
-        Rx = Matrix([
+        Rx = np.array([
             [1, 0, 0, 0],
-            [0, cos(rx_sym), -sin(rx_sym), 0],
-            [0, sin(rx_sym), cos(rx_sym), 0],
+            [0, cos(rx), -sin(rx), 0],
+            [0, sin(rx), cos(rx), 0],
             [0, 0, 0, 1]
         ])
         
         # Rotation around Y  
-        Ry = Matrix([
-            [cos(ry_sym), 0, sin(ry_sym), 0],
+        Ry = np.array([
+            [cos(ry), 0, sin(ry), 0],
             [0, 1, 0, 0],
-            [-sin(ry_sym), 0, cos(ry_sym), 0],
+            [-sin(ry), 0, cos(ry), 0],
             [0, 0, 0, 1]
         ])
         
         # Rotation around Z
-        Rz = Matrix([
-            [cos(rz_sym), -sin(rz_sym), 0, 0],
-            [sin(rz_sym), cos(rz_sym), 0, 0],
+        Rz = np.array([
+            [cos(rz), -sin(rz), 0, 0],
+            [sin(rz), cos(rz), 0, 0],
             [0, 0, 1, 0],
             [0, 0, 0, 1]
         ])
         
         return Rx * Ry * Rz
     
+    @classmethod
+    def create_sym_translation_matrix(cls):
+        
+        dx_sym = sp.Symbol('dx')
+        dy_sym = sp.Symbol('dy')
+        dz_sym = sp.Symbol('dz')
+        return Matrix(cls.create_translation_matrix(dx_sym, dy_sym, dz_sym)), (dx_sym, dy_sym, dz_sym)
+        
+    @classmethod
+    def create_sym_rotation_matrix_z(cls):
+        
+        rz_sym = sp.Symbol('rz')
+        return Matrix(cls.create_rotation_matrix_z(rz_sym)), (rz_sym,)
+    
+    @classmethod
+    def create_sym_rotation_matrix_xyz(cls):
+        
+        rx_sym = sp.Symbol('rx')
+        ry_sym = sp.Symbol('ry')
+        rz_sym = sp.Symbol('rz')
+        return Matrix(cls.create_rotation_matrix_xyz(rx_sym, ry_sym, rz_sym)), (rx_sym, ry_sym, rz_sym)
+
     def create_dimension_transform(self, dimension: 'Dimension') -> TransformationStep:
         """
         Create a transformation step from a datum dimension.
@@ -409,7 +445,7 @@ class CoordinateTransformer:
                 description=f"Identity mate: {mate.mate_type.value}"
             )
     
-    def build_transformation_chain(self, datum: Datum, assembly: 'Assembly') -> List[TransformationStep]:
+    def build_transformation_chain(self, datum: 'Datum', assembly: 'Assembly') -> List[TransformationStep]:
         """
         Build the complete transformation chain from a datum to the global coordinate system.
         

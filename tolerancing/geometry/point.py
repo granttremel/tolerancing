@@ -66,3 +66,7 @@ class Point(GeometryBase):
                 return True
         return False
     
+    def __repr__(self):
+        """Simple representation of a point."""
+        return f"Point(origin=[{self.origin[0]:.1f},{self.origin[1]:.1f},{self.origin[2]:.1f}])"
+    

@@ -1,11 +1,12 @@
 
 
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Tuple, Optional, Set
 from enum import Enum
-import numpy as np_Geometry_Geometry
+import numpy as np
+from dataclasses import dataclass, field
 
 from .component import Component
-from .datum import Datum, geocalc
+from .datum import Datum
 from .geometry.geometry import GeometryType
 from .transformations import CoordinateTransformer, TransformationStep
 

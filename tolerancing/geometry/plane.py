@@ -101,6 +101,12 @@ class Plane(GeometryBase):
         """
         return self.origin + u * self.u + v * self.v + w * self.w
     
+    def get_local_frame(self, u, v, w):
+        """
+        a plane's frame is the same everywhere
+        """
+        return self.frame
+    
     def tangent(self, u: float = 0, v: float = 0, w: float = 0) -> np.ndarray:
         """
         Returns a tangent vector in the plane.
@@ -276,7 +282,7 @@ class Plane(GeometryBase):
         """
         Derive a different type of geometry from this plane.
         """
-        newgeo = GeometryType(params.get("geo_type", 0))
+        newgeo = GeometryType(params.get("new_geo", params.get("geo_type", 0)))
         
         if newgeo == GeometryType.POINT:
             # Point at specified coordinates on plane
@@ -293,6 +299,16 @@ class Plane(GeometryBase):
                 return NullGeometry()
             from .axis import Axis
             return Axis(origin=at_point, u=direction)
+        elif newgeo == GeometryType.CYLINDER:
+            # Cylinder perpendicular to plane
+            du = params.get('du', 0)
+            dv = params.get('dv', 0)
+            dw = params.get('dw', 0)
+            origin = self.origin + du * self.u + dv * self.v + dw * self.w
+            direction = params.get('direction', self.u)  # Default to plane normal
+            radius = params.get('r', 1.0)
+            from .cylinder import Cylinder
+            return Cylinder(origin=origin, u=direction, r=radius)
         else:
             return NullGeometry()
         
@@ -318,3 +334,7 @@ class Plane(GeometryBase):
                 return np.allclose(self._distance_point(Point(origin=other.origin)), 0)
             return False
         return False
+    
+    def __repr__(self):
+        """Simple representation of a plane."""
+        return f"Plane(origin=[{self.origin[0]:.1f},{self.origin[1]:.1f},{self.origin[2]:.1f}],u=[{self.u[0]:.1f},{self.u[1]:.1f},{self.u[2]:.1f}])"
